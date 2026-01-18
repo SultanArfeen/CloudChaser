@@ -1,0 +1,27 @@
+{
+    "short_name": "CloudChaser",
+    "name": "CloudChaser - AI Cloud Classifier",
+    "description": "Identify cloud types and get live weather insights with AI-powered analysis",
+    "icons": [
+        {
+            "src": "/icons/icon-192.png",
+            "type": "image/png",
+            "sizes": "192x192"
+        },
+        {
+            "src": "/icons/icon-512.png",
+            "type": "image/png",
+            "sizes": "512x512"
+        }
+    ],
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "theme_color": "#0f172a",
+    "background_color": "#0f172a",
+    "categories": [
+        "weather",
+        "education",
+        "utilities"
+    ]
+}
