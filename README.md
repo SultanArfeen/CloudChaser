@@ -1,6 +1,6 @@
 # CloudChaser ☁️
 
-An AI-powered Android app that identifies cloud types in real-time and provides meteorological insights.
+An AI-powered Android app that identifies the weather by looking at the clouds through your camera lens.
 
 ## Features
 
