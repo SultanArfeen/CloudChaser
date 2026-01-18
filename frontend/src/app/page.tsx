@@ -26,6 +26,14 @@ const CameraIcon = () => (
     </svg>
 );
 
+const UploadIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="17 8 12 3 7 8" />
+        <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+);
+
 const CloseIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <line x1="18" y1="6" x2="6" y2="18" />
@@ -53,10 +61,14 @@ export default function HomePage() {
     const [location, setLocation] = useState<{ lat: number, lon: number } | null>(null);
     const [statusMessage, setStatusMessage] = useState<string>('');
     const [isCapturing, setIsCapturing] = useState(false);
+    const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+    const [showUploadPreview, setShowUploadPreview] = useState(false);
 
     // Refs
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const uploadedImgRef = useRef<HTMLImageElement>(null);
     const inferenceIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // Hooks
@@ -118,7 +130,7 @@ export default function HomePage() {
             } catch (error) {
                 console.error('Camera initialization failed:', error);
                 setIsLoading(false);
-                showStatus('Camera access denied');
+                showStatus('No camera - use Upload button');
             }
         }
 
@@ -199,7 +211,71 @@ export default function HomePage() {
         };
     }, [modelReady]);
 
-    // Capture and analyze
+    // Handle file upload
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target?.result as string;
+            setUploadedImage(dataUrl);
+            setShowUploadPreview(true);
+            showStatus('Image loaded - analyzing...');
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // Analyze uploaded image
+    const analyzeUploadedImage = async () => {
+        if (!uploadedImgRef.current || !modelReady) {
+            showStatus('Model not ready yet');
+            return;
+        }
+
+        setIsCapturing(true);
+        showStatus('Analyzing uploaded image...');
+
+        try {
+            // Run inference on uploaded image
+            const result = await classifyImage(uploadedImgRef.current);
+            setCurrentClass(result.classId);
+            setConfidence(result.confidence);
+
+            // Get analysis from backend
+            const analysisData = await analyzeCloud(
+                result.classId,
+                result.confidence,
+                location?.lat,
+                location?.lon
+            );
+
+            setAnalysisResult(analysisData);
+            setWeather(analysisData.weather);
+            setShowAnalysis(true);
+            setShowUploadPreview(false);
+        } catch (error) {
+            console.error('Analysis failed:', error);
+
+            // Offline fallback
+            const offlineResult: AnalysisResult = {
+                cloud_type: OFFLINE_CLOUD_TYPES[currentClass],
+                weather: null,
+                analysis_text: `**Cloud Type: ${CLASS_NAMES[currentClass]}**\n\nConfidence: ${(confidence * 100).toFixed(1)}%\n\n${OFFLINE_CLOUD_TYPES[currentClass].description}\n\n💧 LWC: ${OFFLINE_CLOUD_TYPES[currentClass].lwc_min} - ${OFFLINE_CLOUD_TYPES[currentClass].lwc_max} g/m³\n\n⚠️ Offline mode - connect to backend for full analysis.`,
+                confidence,
+                timestamp: new Date().toISOString()
+            };
+
+            setAnalysisResult(offlineResult);
+            setShowAnalysis(true);
+            setShowUploadPreview(false);
+            showStatus('Offline analysis');
+        } finally {
+            setIsCapturing(false);
+        }
+    };
+
+    // Capture and analyze from camera
     const handleCapture = async () => {
         if (isCapturing) return;
 
@@ -238,6 +314,11 @@ export default function HomePage() {
         }
     };
 
+    // Trigger file input
+    const handleUploadClick = () => {
+        fileInputRef.current?.click();
+    };
+
     // Get risk level
     const getRiskLevel = (): 'low' | 'moderate' | 'high' => {
         if (currentClass === 1) return 'high'; // Cumuliform
@@ -253,6 +334,15 @@ export default function HomePage() {
 
     return (
         <div className="app-container">
+            {/* Hidden file input for upload */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                style={{ display: 'none' }}
+            />
+
             {/* Camera Container */}
             <div id="camera-container" className="camera-container">
                 {!Capacitor.isNativePlatform() && (
@@ -357,6 +447,16 @@ export default function HomePage() {
 
                     {/* Action Buttons */}
                     <div className="action-bar">
+                        {/* Upload Button */}
+                        <button
+                            className="action-button secondary"
+                            onClick={handleUploadClick}
+                            title="Upload Image"
+                        >
+                            <UploadIcon />
+                        </button>
+
+                        {/* Camera Capture Button */}
                         <button
                             className="action-button primary"
                             onClick={handleCapture}
@@ -406,6 +506,39 @@ export default function HomePage() {
                     >
                         🧭 Enable Compass
                     </button>
+                </div>
+            )}
+
+            {/* Upload Preview Modal */}
+            {showUploadPreview && uploadedImage && (
+                <div className="analysis-modal" onClick={() => setShowUploadPreview(false)}>
+                    <div className="analysis-content glass-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '90vw' }}>
+                        <div className="analysis-header">
+                            <h2 className="analysis-title">
+                                📷 Analyze Image
+                            </h2>
+                            <button className="close-button" onClick={() => setShowUploadPreview(false)}>
+                                <CloseIcon />
+                            </button>
+                        </div>
+                        <div style={{ marginBottom: '16px', borderRadius: '8px', overflow: 'hidden' }}>
+                            <img
+                                ref={uploadedImgRef}
+                                src={uploadedImage}
+                                alt="Uploaded cloud"
+                                style={{ width: '100%', maxHeight: '300px', objectFit: 'contain' }}
+                                crossOrigin="anonymous"
+                            />
+                        </div>
+                        <button
+                            className="permission-button"
+                            onClick={analyzeUploadedImage}
+                            disabled={isCapturing || !modelReady}
+                            style={{ width: '100%', padding: '16px', fontSize: '1.1rem' }}
+                        >
+                            {isCapturing ? '🔄 Analyzing...' : modelReady ? '🔍 Analyze This Cloud' : '⏳ Loading Model...'}
+                        </button>
+                    </div>
                 </div>
             )}
 

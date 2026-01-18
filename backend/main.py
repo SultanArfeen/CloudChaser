@@ -76,38 +76,38 @@ CLOUD_TYPES = {
     0: CloudType(
         id=0,
         name="Cirriform",
-        description="High-altitude clouds composed of ice crystals. Thin, wispy appearance. Form above 20,000 feet.",
+        description="High-altitude clouds composed of ice crystals. Thin, wispy appearance. Form above 20,000 feet. WHITE/BRIGHT appearance - no rain.",
         lwc_min=0.01,
         lwc_max=0.05,
-        precipitation_risk="None - these clouds don't produce precipitation",
+        precipitation_risk="🌤️ 0% Rain Chance - Ice crystals too light to fall as precipitation",
         aviation_warning="Generally safe. May indicate approaching weather fronts 12-24 hours away."
     ),
     1: CloudType(
         id=1,
         name="Cumuliform",
-        description="Vertically developed clouds with sharp edges. Dense, fluffy appearance. Can produce thunderstorms.",
+        description="Vertically developed clouds with sharp edges. Can range from white fluffy to DARK GREY/BLACK when rain-bearing. Towering dark cumulus = ACTIVE RAIN.",
         lwc_min=0.5,
         lwc_max=3.0,
-        precipitation_risk="High - can produce heavy rain, hail, and thunderstorms",
-        aviation_warning="CAUTION: Potential severe turbulence, icing, and convective activity. Avoid if developing vertically."
+        precipitation_risk="⛈️ 70-95% Rain Chance - Dark coloring indicates heavy rain, hail, thunderstorms likely",
+        aviation_warning="DANGER: Severe turbulence, icing, lightning. Dark bases = active precipitation. AVOID."
     ),
     2: CloudType(
         id=2,
         name="Stratiform",
-        description="Layered, uniform clouds covering large areas. Flat bases with grey appearance.",
+        description="Layered, uniform clouds covering large areas. GREY coloring indicates moisture-laden clouds ready to precipitate.",
         lwc_min=0.25,
         lwc_max=0.30,
-        precipitation_risk="Moderate - can produce steady light rain or drizzle",
-        aviation_warning="Low visibility conditions possible. Watch for reduced ceiling heights."
+        precipitation_risk="🌧️ 40-60% Rain Chance - Steady light rain or drizzle likely from grey stratus",
+        aviation_warning="Low visibility, IFR conditions. Expect continuous light precipitation."
     ),
     3: CloudType(
         id=3,
         name="Stratocumuliform",
-        description="Hybrid clouds with rolling masses. Patchy appearance mixing stratus and cumulus features.",
+        description="Hybrid clouds with rolling masses. Grey/dark patches indicate rain pockets. Mixed appearance with variable rain risk.",
         lwc_min=0.30,
         lwc_max=0.45,
-        precipitation_risk="Moderate - may produce light showers",
-        aviation_warning="Variable conditions. Monitor for embedded convective activity."
+        precipitation_risk="🌦️ 30-50% Rain Chance - Light showers from darker sections, dry under white areas",
+        aviation_warning="Variable conditions. Darker sections may contain moderate precipitation."
     ),
     4: CloudType(
         id=4,
@@ -115,8 +115,8 @@ CLOUD_TYPES = {
         description="Clear sky or non-cloud objects (buildings, trees, etc.)",
         lwc_min=0.0,
         lwc_max=0.0,
-        precipitation_risk="None",
-        aviation_warning="Clear conditions"
+        precipitation_risk="☀️ 0% Rain Chance - Clear sky",
+        aviation_warning="Clear conditions - VFR flight rules apply"
     )
 }
 
@@ -182,49 +182,49 @@ def generate_analysis_text(
     analysis_parts = []
     
     # Cloud identification
-    analysis_parts.append(f"**Cloud Type Identified: {cloud_type.name}**")
-    analysis_parts.append(f"Classification confidence: {confidence*100:.1f}%")
+    analysis_parts.append(f"**Cloud Type: {cloud_type.name}**")
+    analysis_parts.append(f"AI Confidence: {confidence*100:.0f}%")
+    analysis_parts.append("")
+    
+    # PROMINENT RAIN CHANCE - This is the key info users want
+    analysis_parts.append("━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    analysis_parts.append(f"**{cloud_type.precipitation_risk}**")
+    analysis_parts.append("━━━━━━━━━━━━━━━━━━━━━━━━━━")
     analysis_parts.append("")
     
     # Description
     analysis_parts.append(f"📋 {cloud_type.description}")
     analysis_parts.append("")
     
-    # Liquid Water Content
+    # Liquid Water Content with rain interpretation
     if cloud_type.id != 4:  # Not background
         lwc_avg = (cloud_type.lwc_min + cloud_type.lwc_max) / 2
-        analysis_parts.append(f"💧 **Liquid Water Content**: {cloud_type.lwc_min:.2f} - {cloud_type.lwc_max:.2f} g/m³")
+        analysis_parts.append(f"💧 **Water Content**: {lwc_avg:.2f} g/m³")
         
         if lwc_avg > 1.0:
-            analysis_parts.append("   ⚠️ High water density - potential for heavy precipitation")
+            analysis_parts.append("   🔴 HEAVY - Expect rain within 15-30 minutes")
         elif lwc_avg > 0.3:
-            analysis_parts.append("   ☁️ Moderate water content")
+            analysis_parts.append("   🟡 MODERATE - Rain possible")
         else:
-            analysis_parts.append("   ✓ Low water content")
-    
-    analysis_parts.append("")
-    
-    # Precipitation risk
-    analysis_parts.append(f"🌧️ **Precipitation Risk**: {cloud_type.precipitation_risk}")
-    analysis_parts.append("")
+            analysis_parts.append("   🟢 LOW - No rain expected")
+        analysis_parts.append("")
     
     # Weather context
     if weather:
-        analysis_parts.append("📍 **Current Weather Conditions**:")
-        analysis_parts.append(f"   • Temperature: {weather.temperature}°C")
-        analysis_parts.append(f"   • Humidity: {weather.humidity}%")
-        analysis_parts.append(f"   • Cloud Cover: {weather.cloud_cover}%")
-        analysis_parts.append(f"   • Wind: {weather.wind_speed} km/h")
-        analysis_parts.append(f"   • Conditions: {weather.description}")
+        analysis_parts.append("📍 **Live Weather**:")
+        analysis_parts.append(f"   🌡️ {weather.temperature}°C | 💧 {weather.humidity}% humidity")
+        analysis_parts.append(f"   💨 Wind: {weather.wind_speed} km/h")
+        analysis_parts.append(f"   ☁️ Sky: {weather.cloud_cover}% covered")
+        analysis_parts.append(f"   📌 {weather.description}")
         analysis_parts.append("")
         
-        # Contextual analysis
+        # Rain warning based on combined factors
         if weather.humidity > 80 and cloud_type.id in [1, 2, 3]:
-            analysis_parts.append("⚡ High humidity combined with cloud cover suggests increased precipitation likelihood.")
+            analysis_parts.append("⚡ **RAIN ALERT**: High humidity + cloud cover = precipitation imminent!")
+            analysis_parts.append("")
     
     # Aviation warning
-    if cloud_type.aviation_warning:
-        analysis_parts.append(f"✈️ **Aviation Advisory**: {cloud_type.aviation_warning}")
+    analysis_parts.append(f"✈️ **Aviation**: {cloud_type.aviation_warning}")
     
     return "\n".join(analysis_parts)
 
