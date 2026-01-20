@@ -93,6 +93,13 @@ CloudChaser/
 └── BUILD.md              # Detailed build guide
 ```
 
+## Accuracy & Limitations
+
+The system achieves **>90% accuracy** for Cloud Type Detection and **75% accuracy** for Rain Prediction using the on-device MobileNetV3 model.
+
+> **Note:** As a vision-based system, inference relies on optical clarity. Performance is optimal in daylight and may degrade in low-light conditions, at night, or when the horizon is significantly obstructed.
+
+
 ## Dataset
 
 The app uses the **Clouds-1500** dataset from UFSC (Federal University of Santa Catarina):
